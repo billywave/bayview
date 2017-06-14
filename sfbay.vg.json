@@ -1,0 +1,836 @@
+{
+	"$schema": "https://vega.github.io/schema/vega/v3.0.json",
+	"padding": {
+		"top": 40,
+		"left": 40,
+		"right": 0,
+		"bottom": 0
+	},
+
+	"data": [
+		{
+			"name": "rawdata",
+			"url": "data/sfbaydata.csv",
+			"format": {
+				"type": "csv", 
+				"parse": {
+					"Date": "date:'%m/%d/%Y'",
+					"Station": "number",
+					"Depth": "number",
+					"Calculated Oxygen": "number",
+					"Calculated Chlorophyll": "number",
+					"Temperature": "number",
+					"Salinity": "number"
+				}
+			}
+		},
+		{
+			"name": "measurements",
+			"source": "rawdata",
+			"transform": [
+				{
+					"type": "filter",
+					"expr": "year(datum.Date) >= dateFrom"
+				},
+				{
+					"type": "filter",
+					"expr": "year(datum.Date) <= dateTo"
+				},
+				{
+					"type": "filter",
+					"expr": "datum.Station >= stationFrom"
+				},
+				{
+					"type": "filter",
+					"expr": "datum.Station <= stationTo"
+				},
+				{	
+					"type": "formula", 
+					"as": "Date",
+					"expr": "datetime(year(datum.Date), month(datum.Date), 1)"
+				},
+				{
+					"type": "bin",
+					"field": "Depth",
+					"extent": [0,40],
+					"maxbins": 4,
+					"as": ["depth0","depth1"]
+				}
+			]
+		},
+		{
+			"name": "linechartdata",
+			"source": "measurements",
+			"transform": [
+				{ 
+					"type": "aggregate",
+					"groupby": ["Date", "depth0"],
+					"fields": ["Temperature", "Salinity", "Calculated Chlorophyll", "Calculated Oxygen"], 
+					"ops": ["average", "average", "average", "average"], 
+					"as": ["avgTemperature", "avgSalinity", "avgChlorophyll", "avgOxygen"]
+				}
+			]
+		},
+		{
+			"name": "level0",
+			"source": "linechartdata",
+			"transform": [ { "type": "filter", "expr": "datum.depth0 == 0" }]
+		},
+		{
+			"name": "level1",
+			"source": "linechartdata",
+			"transform": [ { "type": "filter", "expr": "datum.depth0 == 10" }]
+		},
+		{
+			"name": "level2",
+			"source": "linechartdata",
+			"transform": [ { "type": "filter", "expr": "datum.depth0 == 20" }]
+		},
+		{
+			"name": "level3",
+			"source": "linechartdata",
+			"transform": [ { "type": "filter", "expr": "datum.depth0 == 30" }]
+		},
+		{
+			"name": "heatmapdata",
+			"source": "measurements",
+			"transform": [
+				{ 
+					"type": "aggregate",
+					"groupby": ["Date", "Station"],
+					"fields": [{"signal": "heatmapSource"}], 
+					"ops": ["average"], 
+					"as": ["avgHeatmap"]
+				}
+			]
+		},
+		{
+			"name": "heatmaprawdata",
+			"source": "rawdata",
+			"transform": [
+				{ 
+					"type": "aggregate",
+					"groupby": ["Date", "Station"],
+					"fields": [{"signal": "heatmapSource"}], 
+					"ops": ["average"], 
+					"as": ["avgHeatmap"]
+				}
+			]
+		},
+		{
+			"name": "scatterplotdata",
+			"source": "measurements",
+			"transform": [
+				{
+					"type": "aggregate",
+					"groupby": ["Date"],
+					"fields": [{"signal": "scatterPlotX"}, {"signal": "scatterPlotY"}],
+					"ops": ["average", "average"],
+					"as": ["avgSPX", "avgSPY"]
+				}
+			]
+		}
+	],
+
+	"signals": [
+		{
+			"name": "dateFrom", 
+			"value": 2007,
+			"bind": {
+				"input": "range",
+				"min": 2007,
+				"max": 2017,
+				"step": 1
+			}
+		},
+		{
+			"name": "dateTo", 
+			"value": 2017,
+			"bind": {
+				"input": "range",
+				"min": 2007,
+				"max": 2017,
+				"step": 1
+			}
+		},
+		{
+			"name": "stationFrom",
+			"value": 2,
+			"bind": {
+				"input": "range",
+				"min": 2,
+				"max": 36,
+				"step": 1
+			}
+		},
+		{
+			"name": "stationTo",
+			"value": 36,
+			"bind": {
+				"input": "range",
+				"min": 2,
+				"max": 36,
+				"step": 1
+			}
+		},
+		{ "name": "visscreenWidth", "value": 1400 },
+		{ "name": "labelpadding", "value": 20 },
+		{ "name": "chartHeight", "value": 100 },
+		{ "name": "chartGroupHeight", "update": "chartHeight*5" },
+		{ "name": "chartGroupWidth", "update": "visscreenWidth" },
+		{ "name": "spHeight", "update": "visscreenWidth/2-10" },
+		{ 
+			"name": "scatterPlotX", 
+			"value": "Temperature",
+			"bind": {
+				"input": "select",
+				"options": ["Temperature", "Salinity", "Calculated Chlorophyll", "Calculated Oxygen"]
+			}
+		},
+		{ 
+			"name": "scatterPlotY", 
+			"value": "Salinity",
+			"bind": {
+				"input": "select",
+				"options": ["Temperature", "Salinity", "Calculated Chlorophyll", "Calculated Oxygen"]
+			}
+		},
+		{ "name": "heatmapHeight", "value": 500 },
+		{ "name": "heatmapWidth", "update": "visscreenWidth" },
+		{ "name": "heatmapBoxWidth", "update": "heatmapWidth/(12*(dateTo-dateFrom+1)) + 2" },
+		{
+			"name": "heatmapSource", 
+			"update": "'Salinity'",
+			"on": [
+				{"events": "@tempchartvis:mousedown", "update": "'Temperature'"},
+				{"events": "@salchartvis:mousedown", "update": "'Salinity'"},
+				{"events": "@chlorchartvis:mousedown", "update": "'Calculated Chlorophyll'"},
+				{"events": "@oxygenchartvis:mousedown", "update": "'Calculated Oxygen'"}
+			]
+		},
+		{
+			"name": "heatmapDetailValue",
+			"value": {},
+			"on": [
+				{"events": "@heatmaprect:mouseover", "update": "datum"},
+				{"events": "@heatmaprect:mouseout",  "update": "{}"}
+			]
+		}
+	],
+	
+	"scales": [
+		{
+			"name": "linechartlayoutyscale",
+			"type": "band",
+			"domain": ["tempchart", "salchart", "chlorchart", "oxygenchart"],
+			"range": [0, {"signal": "chartGroupHeight"}]
+		},
+		{
+			"name": "timescale",
+			"type": "time",
+			"domain": {
+				"data": "measurements",
+				"field": "Date"
+			},
+			"range": [0, {"signal": "visscreenWidth"}]
+		}		
+	],
+
+	"marks": [
+		{
+			"type": "group",
+			"encode": {
+				"enter": {
+					"height": {"signal": "chartGroupHeight"},
+					"width": {"signal": "chartGroupWidth"},
+					"y": 0,
+					"fill": "steelblue"
+				}
+			},
+			
+			"axes": [
+				{
+					"orient": "bottom",
+					"scale": "timescale"
+				}
+			],
+
+			"marks": [
+				{
+					"type": "group",
+					"encode": {
+						"update": {
+							"y": { "scale": "linechartlayoutyscale", "value":"tempchart"},
+							"width": {"signal": "chartGroupWidth"},
+							"height": {"signal": "chartHeight"}
+						}
+					},
+					
+					"scales": [
+						{
+							"name": "tempyscale",
+							"domain": {
+								"data": "linechartdata",
+								"field": "avgTemperature"
+							},
+							"reverse": true,
+							"range": [0, {"signal": "chartHeight"}]
+						}
+					],
+
+					"axes": [
+						{
+							"orient": "left",
+							"scale": "tempyscale",
+							"title": "Temperature"
+						}
+					],
+
+					"marks": [
+						{
+							"type": "line",
+							"from": { "data": "level0" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "tempyscale", "field": "avgTemperature" }
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level1" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "tempyscale", "field": "avgTemperature" },
+									"strokeOpacity": {"value": 0.6}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level2" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "tempyscale", "field": "avgTemperature" },
+									"strokeOpacity": {"value": 0.36}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level3" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "tempyscale", "field": "avgTemperature" },
+									"strokeOpacity": {"value": 0.216}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"name": "tempchartvis",
+							"type": "rect",
+							"encode": {
+								"update": {
+									"width": {"signal": "chartGroupWidth"},
+									"height": {"signal": "chartHeight"},
+									"fill": {"value": "#steelblue"},
+									"fillOpacity": {"value": 0},
+									"stroke": {"value": "#steelblue"},
+									"strokeOpacity": {"value": 0}
+								},
+								"hover": {
+									"strokeOpacity": {"value": 1}
+								}
+							}
+						}
+					]
+				},
+				{
+					"type": "group",
+					"encode": {
+						"update": {
+							"y": { "scale": "linechartlayoutyscale", "value":"salchart"},
+							"width": {"signal": "chartGroupWidth"},
+							"height": {"signal": "chartHeight"},
+							"opacity": {"value": 1}
+						}
+					},
+
+					"scales": [
+						{
+							"name": "salyscale",
+							"domain": {
+								"data": "linechartdata",
+								"field": "avgSalinity"
+							},
+							"reverse": true,
+							"range": [0, {"signal": "chartHeight"}]
+						}
+					],
+
+					"axes": [
+						{
+							"orient": "left",
+							"scale": "salyscale",
+							"title": "Salinity"
+						}
+					],
+
+					"marks": [
+						{
+							"type": "line",
+							"from": { "data": "level0" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "salyscale", "field": "avgSalinity" }
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level1" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "salyscale", "field": "avgSalinity" },
+									"strokeOpacity": {"value": 0.6}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level2" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "salyscale", "field": "avgSalinity" },
+									"strokeOpacity": {"value": 0.36}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level3" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "salyscale", "field": "avgSalinity" },
+									"strokeOpacity": {"value": 0.216}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"name": "salchartvis",
+							"type": "rect",
+							"encode": {
+								"update": {
+									"width": {"signal": "chartGroupWidth"},
+									"height": {"signal": "chartHeight"},
+									"fill": {"value": "#steelblue"},
+									"fillOpacity": {"value": 0},
+									"stroke": {"value": "#steelblue"},
+									"strokeOpacity": {"value": 0}
+								},
+								"hover": {
+									"strokeOpacity": {"value": 1}
+								}
+							}
+						}
+					]
+				},
+				{
+					"type": "group",
+					"encode": {
+						"update": {
+							"y": { "scale": "linechartlayoutyscale", "value":"chlorchart"},
+							"width": {"signal": "chartGroupWidth"},
+							"height": {"signal": "chartHeight"},
+							"opacity": {"value": 1},
+							"fill": {"value": "#ccddff"},
+							"fillOpacity": {"value": 0}
+						}
+					},
+
+					"scales": [
+						{
+							"name": "chloryscale",
+							"domain": {
+								"data": "linechartdata",
+								"field": "avgChlorophyll"
+							},
+							"reverse": true,
+							"range": [0, {"signal": "chartHeight"}]
+						}
+					],
+
+					"axes": [
+						{
+							"orient": "left",
+							"scale": "chloryscale",
+							"title": "Calculated Chlorophyll"
+						}
+					],
+
+					"marks": [
+						{
+							"type": "line",
+							"from": { "data": "level0" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "chloryscale", "field": "avgChlorophyll" }
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level1" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "chloryscale", "field": "avgChlorophyll" },
+									"strokeOpacity": {"value": 0.6}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level2" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "chloryscale", "field": "avgChlorophyll" },
+									"strokeOpacity": {"value": 0.36}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level3" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "chloryscale", "field": "avgChlorophyll" },
+									"strokeOpacity": {"value": 0.216}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"name": "chlorchartvis",
+							"type": "rect",
+							"encode": {
+								"update": {
+									"width": {"signal": "chartGroupWidth"},
+									"height": {"signal": "chartHeight"},
+									"fill": {"value": "#steelblue"},
+									"fillOpacity": {"value": 0},
+									"stroke": {"value": "#steelblue"},
+									"strokeOpacity": {"value": 0}
+								},
+								"hover": {
+									"strokeOpacity": {"value": 1}
+								}
+							}
+						}
+					]
+				},
+				{
+					"type": "group",
+					"encode": {
+						"enter": {
+							"fillOpacity": {"value": 0}
+						},
+						"update": {
+							"y": { "scale": "linechartlayoutyscale", "value":"oxygenchart"},
+							"width": {"signal": "chartGroupWidth"},
+							"height": {"signal": "chartHeight"},
+							"opacity": {"value": 1},
+							"fill": {"value": "#ccddff"}
+							
+						}
+					},
+
+					"scales": [
+						{
+							"name": "oxygenyscale",
+							"domain": {
+								"data": "linechartdata",
+								"field": "avgOxygen"
+							},
+							"reverse": true,
+							"range": [0, {"signal": "chartHeight"}]
+						}
+					],
+
+					"axes": [
+						{
+							"orient": "left",
+							"scale": "oxygenyscale",
+							"title": "Calculated Oxygen"
+						}
+					],
+
+					"marks": [
+						{
+							"type": "line",
+							"from": { "data": "level0" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "oxygenyscale", "field": "avgOxygen" }
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level1" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "oxygenyscale", "field": "avgOxygen" },
+									"strokeOpacity": {"value": 0.6}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level2" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "oxygenyscale", "field": "avgOxygen" },
+									"strokeOpacity": {"value": 0.36}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"type": "line",
+							"from": { "data": "level3" },
+							"encode": {
+								"update": {
+									"x": { "scale": "timescale", "field": "Date" },
+									"y": { "scale": "oxygenyscale", "field": "avgOxygen" },
+									"strokeOpacity": {"value": 0.216}
+								}
+							},
+							"sort": {"field": "datum.Date", "order": "ascending"}
+						},
+						{
+							"name": "oxygenchartvis",
+							"type": "rect",
+							"encode": {
+								"update": {
+									"width": {"signal": "chartGroupWidth"},
+									"height": {"signal": "chartHeight"},
+									"fill": {"value": "#steelblue"},
+									"fillOpacity": {"value": 0},
+									"stroke": {"value": "#steelblue"},
+									"strokeOpacity": {"value": 0}
+								},
+								"hover": {
+									"strokeOpacity": {"value": 1}
+								}
+							}
+						}
+					]
+				}
+
+			]
+
+		},
+		{
+			"type": "group",
+			"encode": {
+				"enter": {
+					"width": {"signal": "heatmapWidth"},
+					"height": {"signal": "heatmapHeight"},
+					"y": {"signal": "chartGroupHeight+100"},
+					"fill": {"value": "#ccddff"},
+					"stroke": {"value": "#steelblue"}
+				}
+			},
+			
+			"scales": [
+				{
+					"name": "colorscale",
+					"type": "sequential",
+					"range": {"scheme": "Magma"},
+					"domain": {
+						"data": "heatmaprawdata",
+						"field": "avgHeatmap"
+					},
+					"zero": false, "nice": false
+				},
+				{
+					"name": "stationnumberscale",
+					"type": "band",
+					"domain": {
+						"data": "measurements",
+						"field": "Station",
+						"sort": {"field": "Station", "order": "descending"}
+					},
+					"range": [0, {"signal": "heatmapHeight"}]
+				},
+				{
+					"name": "hmtimescale",
+					"type": "band",
+					"domain": {
+						"data": "measurements",
+						"field": "Date"
+					},
+					"range": [0, {"signal": "heatmapWidth"}]
+				}
+			],
+			
+			"axes": [
+				{
+					"orient": "bottom",
+					"scale": "timescale"
+				},
+				{
+					"orient": "left",
+					"scale": "stationnumberscale",
+					"title": "Station"
+				}
+			],
+
+			"marks": [
+				{
+					"name": "heatmaprect",
+					"type": "rect",
+					"from": { "data": "heatmapdata" },
+					"encode": {
+						"update": {
+							"x": {
+								"scale": "hmtimescale", "field": "Date"
+							},
+							"y": {
+								"scale": "stationnumberscale", "field": "Station"
+							},
+							"width": {"scale": "hmtimescale", "band": 1.05},
+							"height": {"scale": "stationnumberscale", "band": 1.05},
+							"fill": {"scale": "colorscale", "field": "avgHeatmap"}
+						}
+					}
+				},
+				{
+					"type": "text",
+					"from": { "data": "heatmapdata" },
+					"encode": {
+						"update": {
+							"x": {"value": 0},
+							"y": {"value": -4},
+							"text": {"signal": "heatmapSource"},
+							"baseline": {"value": "bottom"},
+							"fontSize": {"value": 28}
+						}
+					}
+				},
+				{
+					"type": "text",
+					"from": { "data": "heatmapdata" },
+					"encode": {
+						"update": {
+							"x": {"scale": "hmtimescale", "signal": "heatmapDetailValue.Date"},
+							"y": {"scale": "stationnumberscale", "signal": "heatmapDetailValue.Station"},
+							"width": {"value": 200},
+							"height": {"value": 30},
+							"text": {"signal": "heatmapDetailValue.avgHeatmap"},
+							"stroke": {"value": "#000"},
+							"fill": {"value": "#fff"},
+							"baseline": {"value": "bottom"},
+							"fontSize": {"value": 28}
+						}
+					}
+				}
+			]
+		},
+		{
+			"type": "group",
+			"encode": {
+				"enter": {
+					"width": {"signal": "spHeight"},
+					"height": {"signal": "spHeight"},
+					"y": {"signal": "chartGroupHeight+heatmapHeight+200"},
+					"fill": {"value": "#f6f9fc"},
+					"stroke": {"value": "#steelblue"}
+				}
+			},
+			
+			"scales": [
+				{
+					"name": "spyScale",
+					"domain": {
+						"data": "scatterplotdata",
+						"field": "avgSPY"
+					},
+					"reverse": true,
+					"range": [0, {"signal": "spHeight"}]
+				},
+				{
+					"name": "spxScale",
+					"domain": {
+						"data": "scatterplotdata",
+						"field": "avgSPX"
+					},
+					"range": [0, {"signal": "spHeight"}]
+				}
+			],
+			
+			"axes": [
+				{
+					"orient": "bottom",
+					"scale": "spxScale",
+					"title": {"signal": "scatterPlotX"}
+				},
+				{
+					"orient": "left",
+					"scale": "spyScale",
+					"title": {"signal": "scatterPlotY"}
+				}
+			],
+
+			"marks": [
+				{
+					"type": "symbol",
+					"from": { "data": "scatterplotdata" },
+					"encode": {
+						"update": {
+							"x": {
+								"scale": "spxScale", "field": "avgSPX"
+							},
+							"y": {
+								"scale": "spyScale", "field": "avgSPY"
+							},
+							"width": {"value": 10},
+							"height": {"value": 10}
+						}
+					}
+				}
+			]
+		}
+	]
+
+
+			
+}

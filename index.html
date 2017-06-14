@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>BayView</title>
+		<link rel="shortcut icon" href="#">
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/vega/3.0.0-beta.30/vega.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/vega-lite/2.0.0-beta.2/vega-lite.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/vega-embed/3.0.0-beta.14/vega-embed.js"></script>
+		<style>
+			.vega-bindings {
+				font: 16px/1.5em "Helvetica Neue", Helvetica, sans-serif;
+				position: fixed;
+				top: 50px;
+				right: 50px;
+				border: 1px solid steelblue;
+				background: #f6f9fc;
+				padding: 10px;
+			}
+			.vega-bind-name { display: inline-block; width: 105px; }
+			.vega-bind label { margin-left: 10px; }
+		</style>
+	</head>
+	
+	<body>
+		<div id="view"></div>
+		<script>
+			var spec = "sfbay.vg.json";
+			var opt = {
+				"actions" : false
+			}
+			vega.embed('#view', spec, opt);
+		</script>
+	</body>
+</html>
